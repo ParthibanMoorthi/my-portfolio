@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import gsap from "gsap";
 
 export default function CustomCursor() {
+  const cursorRef = useRef(null);
+  const magnifierRef = useRef(null);
   const [visible, setVisible] = useState(true);
+  const [isOverText, setIsOverText] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const cursor = document.querySelector("#ai-cursor");
-    const ring = document.querySelector("#ai-cursor-ring");
-    const pos = { x: 0, y: 0 };
+    const cursor = cursorRef.current;
+    const magnifier = magnifierRef.current;
     const mouse = { x: 0, y: 0 };
+    const pos = { x: 0, y: 0 };
 
     document.body.style.cursor = "none";
 
@@ -18,101 +22,96 @@ export default function CustomCursor() {
     };
     window.addEventListener("mousemove", moveHandler);
 
-    gsap.ticker.add(() => {
-      if (!cursor || !visible) return;
+    const tick = () => {
       pos.x += (mouse.x - pos.x) * 0.2;
       pos.y += (mouse.y - pos.y) * 0.2;
-      gsap.set(cursor, { x: pos.x, y: pos.y });
-    });
 
-    let rotationTween = gsap.to(ring, {
-      rotation: 360,
-      repeat: -1,
-      ease: "linear",
-      duration: 2,
-      transformOrigin: "center center",
-      paused: false,
-    });
+      if (cursor && visible) {
+        gsap.set(cursor, { x: pos.x, y: pos.y });
+      }
+      if (magnifier && visible && isOverText) {
+        gsap.set(magnifier, { x: pos.x, y: pos.y });
+        // Also update background position inside magnifier to create zoom effect
+        magnifier.style.backgroundPosition = `calc(50% + ${-pos.x * 1.5}px) calc(50% + ${-pos.y * 1.5}px)`;
+      } else if (magnifier) {
+        gsap.set(magnifier, { x: -9999, y: -9999 }); // Hide magnifier offscreen
+      }
 
-    // Target header logo
-    const headerLogo = document.querySelector("#header-logo");
-
-    const onLogoEnter = () => {
-      setVisible(false);
-      document.body.style.cursor = "auto";
-      if (rotationTween) rotationTween.pause();
+      requestAnimationFrame(tick);
     };
-    const onLogoLeave = () => {
-      setVisible(true);
-      document.body.style.cursor = "none";
-      if (rotationTween) rotationTween.resume();
-    };
+    tick();
 
-    if (headerLogo) {
-      headerLogo.addEventListener("mouseenter", onLogoEnter);
-      headerLogo.addEventListener("mouseleave", onLogoLeave);
-    }
+    // Handlers for text hover detection
+    const textElements = document.querySelectorAll(".glass-text");
 
-    // Target all nav links with class 'header-link'
-    const headerLinks = document.querySelectorAll(".header-link");
+    const onTextEnter = () => setIsOverText(true);
+    const onTextLeave = () => setIsOverText(false);
 
-    headerLinks.forEach((link) => {
-      link.addEventListener("mouseenter", onLogoEnter);
-      link.addEventListener("mouseleave", onLogoLeave);
-    });
-
-    // Hover effects on all a, button, .magnetic elements (ring color + rotation)
-    document.querySelectorAll("a, button, .magnetic").forEach((el) => {
-      el.addEventListener("mouseenter", () => {
-        gsap.to(ring, { borderColor: "rgba(99, 146, 245, 1)", duration: 0.2 });
-        gsap.to(ring, { duration: 1, rotation: "+=180", ease: "power2.inOut" });
-      });
-      el.addEventListener("mouseleave", () => {
-        gsap.to(ring, { borderColor: "rgba(58, 95, 207, 0.6)", duration: 0.2 });
-      });
+    textElements.forEach((el) => {
+      el.addEventListener("mouseenter", onTextEnter);
+      el.addEventListener("mouseleave", onTextLeave);
     });
 
     return () => {
       document.body.style.cursor = "auto";
       window.removeEventListener("mousemove", moveHandler);
-      if (headerLogo) {
-        headerLogo.removeEventListener("mouseenter", onLogoEnter);
-        headerLogo.removeEventListener("mouseleave", onLogoLeave);
-      }
-      headerLinks.forEach((link) => {
-        link.removeEventListener("mouseenter", onLogoEnter);
-        link.removeEventListener("mouseleave", onLogoLeave);
+      textElements.forEach((el) => {
+        el.removeEventListener("mouseenter", onTextEnter);
+        el.removeEventListener("mouseleave", onTextLeave);
       });
     };
-  }, [visible]);
+  }, [visible, isOverText]);
 
   return (
-    <div
-      id="ai-cursor"
-      className={`pointer-events-none fixed top-0 left-0 z-[9999] w-10 h-10 flex items-center justify-center transition-opacity duration-200 ${visible ? "opacity-100" : "opacity-0"
+    <>
+      {/* Custom cursor dot and ring */}
+      <div
+        id="ai-cursor"
+        ref={cursorRef}
+        className={`pointer-events-none fixed top-0 left-0 z-[9999] w-10 h-10 flex items-center justify-center transition-opacity duration-200 ${
+          visible ? "opacity-100" : "opacity-0"
         }`}
-      style={{
-        transform: "translate(-50%, -50%)",
-      }}
-    >
-      {/* Center dot */}
-      <div
-        className="w-2 h-2 rounded-full"
         style={{
-          backgroundColor: "#2A52BE",
-          boxShadow: "0 0 8px rgba(42, 82, 190, 0.9)",
+          transform: "translate(-50%, -50%)",
+          pointerEvents: "none",
         }}
-      ></div>
+      >
+        {/* Center dot */}
+        <div
+          className="w-2 h-2 rounded-full"
+          style={{
+            backgroundColor: "#2A52BE",
+            boxShadow: "0 0 8px rgba(42, 82, 190, 0.9)",
+          }}
+        ></div>
 
-      {/* Rotating ring */}
+        {/* Rotating ring */}
+        <div
+          id="ai-cursor-ring"
+          className="absolute w-8 h-8 rounded-full border"
+          style={{
+            borderColor: "rgba(58, 95, 207, 0.6)",
+            boxShadow: "0 0 12px rgba(58, 95, 207, 0.6)",
+          }}
+        ></div>
+      </div>
+
+      {/* Glass magnifier */}
       <div
-        id="ai-cursor-ring"
-        className="absolute w-8 h-8 rounded-full border"
+        ref={magnifierRef}
+        className="fixed pointer-events-none w-32 h-32 rounded-full border border-white/50 backdrop-blur-md shadow-lg"
         style={{
-          borderColor: "rgba(58, 95, 207, 0.6)",
-          boxShadow: "0 0 12px rgba(58, 95, 207, 0.6)",
+          top: 0,
+          left: 0,
+          transform: "translate(-50%, -50%)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "200% 200%",
+          backgroundImage: "none", // set below in effect
+          mixBlendMode: "screen",
+          zIndex: 9998,
+          display: isOverText ? "block" : "none",
         }}
       ></div>
-    </div>
+    </>
   );
 }

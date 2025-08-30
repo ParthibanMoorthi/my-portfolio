@@ -29,3 +29,31 @@ html, body {
   scrollbar-width: thin;
   scrollbar-color: #9ca3af #222222;
 }
+
+
+.moving-border {
+  position: relative;
+  border-radius: 1rem;
+}
+
+.moving-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 0.6px; /* border thickness */
+  border-radius: 1rem;
+  background: linear-gradient(90deg, #6366F1, #ec4899, #6366F1); /* 2 colors repeating */
+  background-size: 300% 100%; /* repeat horizontally for smooth movement */
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: gradient-slide 2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes gradient-slide {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 0%; }
+}
